@@ -183,7 +183,7 @@ public class CassandraMigrationIT extends BaseIT {
 	public void testValidateWithSession() {
 		// apply migration scripts
 		String[] scriptsLocations = { "migration/integ", "migration/integ/java" };
-		Session session = getSession();
+		Session session = connectKeyspace(getKeyspace().getName());
 		CassandraMigration cm = new CassandraMigration();
 		cm.getConfigs().setScriptsLocations(scriptsLocations);
 		cm.setKeyspace(getKeyspace());

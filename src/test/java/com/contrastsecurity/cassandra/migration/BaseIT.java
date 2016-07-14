@@ -1,15 +1,14 @@
 package com.contrastsecurity.cassandra.migration;
 
 import com.contrastsecurity.cassandra.migration.config.Keyspace;
-import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.Statement;
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
+import org.cassandraunit.CassandraCQLUnit;
+import org.cassandraunit.dataset.cql.ClassPathCQLDataSet;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 
 public abstract class BaseIT {
     public static final String CASSANDRA__KEYSPACE = "cassandra_migration_test";
@@ -18,28 +17,16 @@ public abstract class BaseIT {
     public static final String CASSANDRA_USERNAME = "cassandra";
     public static final String CASSANDRA_PASSWORD = "cassandra";
 
-    private Session session;
-
-    @BeforeClass
-    public static void beforeSuite() throws Exception {
-        EmbeddedCassandraServerHelper.startEmbeddedCassandra(
-                "cassandra-unit.yaml",
-                "target/embeddedCassandra",
-                200000L);
-    }
-
-    @AfterClass
-    public static void afterSuite() {
-        EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
-    }
+    @ClassRule
+    public static CassandraCQLUnit cassandraUnit = new CassandraCQLUnit(new ClassPathCQLDataSet("it-schema.cql",false), "cassandra-unit.yaml");
 
     @Before
     public void createKeyspace() {
         Statement statement = new SimpleStatement(
-                "CREATE KEYSPACE " + CASSANDRA__KEYSPACE +
+                "CREATE KEYSPACE if not exists " + CASSANDRA__KEYSPACE +
                         "  WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };"
         );
-        getSession(getKeyspace()).execute(statement);
+        getSession().execute(statement);
     }
 
     @After
@@ -47,7 +34,7 @@ public abstract class BaseIT {
         Statement statement = new SimpleStatement(
                 "DROP KEYSPACE " + CASSANDRA__KEYSPACE + ";"
         );
-        getSession(getKeyspace()).execute(statement);
+        getSession().execute(statement);
     }
 
     protected Keyspace getKeyspace() {
@@ -60,19 +47,12 @@ public abstract class BaseIT {
         return ks;
     }
 
-    private Session getSession(Keyspace keyspace) {
-        if (session != null && !session.isClosed())
-            return session;
-
-        com.datastax.driver.core.Cluster.Builder builder = new com.datastax.driver.core.Cluster.Builder();
-        builder.addContactPoints(CASSANDRA_CONTACT_POINT).withPort(CASSANDRA_PORT);
-        builder.withCredentials(keyspace.getCluster().getUsername(), keyspace.getCluster().getPassword());
-        Cluster cluster = builder.build();
-        session = cluster.connect();
-        return session;
-    }
-
     protected Session getSession() {
-        return session;
+         return cassandraUnit.getSession();
     }
+
+    protected Session connectKeyspace(String keyspace) {
+        return cassandraUnit.cluster.connect(keyspace);
+    }
+
 }
